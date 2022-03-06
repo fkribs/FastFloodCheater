@@ -31,7 +31,7 @@ namespace FastFloodCheater
             var cells = driver.FindElements(By.ClassName(CELL_CLASS));
             var grid = MakeGrid(cells);
 
-            var numSolutions = 500_000;
+            var numSolutions = 10_000;
             int minSteps = int.MaxValue;
             object sync = new object();
             var solutions = new ConcurrentBag<List<Color>>();
