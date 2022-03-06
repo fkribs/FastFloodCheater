@@ -17,7 +17,8 @@ namespace FastFloodCheater
         const string SITE_URL = "https://fastflood.dylancastillo.co/";
         const string DOCUMENT_READYSTATE_SCRIPT = "return document.readyState";
         const string INVALID_UNICODE_ERROR = "Invalid unicode value";
-        const string DONE_MESSAGE = "Press any key to exit";
+        const string GAME_LOST_ERROR = "No winning solutions found";
+        const string DONE_MESSAGE = "Press any key to exit: ";
         const string COLOR_BUTTON_CLASS = "color-button";
         const string PLAY_NOW_BUTTON_ID = "start-btn";
         const string COMPLETE = "complete";
@@ -34,13 +35,15 @@ namespace FastFloodCheater
 
         const int CONSOLE_FORMATTING_COLUMN_WIDTH = 7;
         const int JS_WAIT_TIMEOUT_MS = 10_000;
-        const int NUM_SOLUTIONS = 10_000;
+        const int NUM_SOLUTIONS = 20_000;
         const int GRID_WIDTH = 10;
 
         public static void Main(string[] args)
         {
-            IWebDriver driver = new ChromeDriver(Directory.GetCurrentDirectory());
-            driver.Url = SITE_URL;
+            IWebDriver driver = new ChromeDriver(Directory.GetCurrentDirectory())
+            {
+                Url = SITE_URL
+            };
             var wait = new WebDriverWait(driver, TimeSpan.FromMilliseconds(JS_WAIT_TIMEOUT_MS));
             wait.Until(d => ((IJavaScriptExecutor)d).ExecuteScript(DOCUMENT_READYSTATE_SCRIPT).Equals(COMPLETE));
             driver.FindElement(By.Id(PLAY_NOW_BUTTON_ID)).Click();
@@ -49,26 +52,28 @@ namespace FastFloodCheater
 
             int minSteps = int.MaxValue;
             object sync = new object();
-            var solutions = new ConcurrentBag<List<Color>>();
+            var allSolutions = new ConcurrentBag<List<Color>>();
             Parallel.ForEach(Enumerable.Range(0, NUM_SOLUTIONS), _ =>
             {
-                solutions.Add(GetSolution(grid, ref minSteps, sync));
+                allSolutions.Add(GetSolution(grid, ref minSteps, sync));
             });
 
-            var allSolutions = solutions.Where(s => s.Count <= minSteps).ToList();
-            var bestSolution = allSolutions.First();
+            var bestSolutions = allSolutions.Where(s => s.Count <= minSteps).ToList();
+            var chosenSolution = bestSolutions.First();
             for (int i = 0; i < minSteps; i++)
             {
                 string step = "";
-                foreach (var solution in allSolutions)
+                foreach (var solution in bestSolutions)
                 {
                     step = $"{step} {(solution.Count > i ? solution[i].ToString() : DONE),CONSOLE_FORMATTING_COLUMN_WIDTH}";
                 }
                 Console.WriteLine($"{step}");
             }
-            InputSolution(driver, bestSolution);
+            InputSolution(driver, chosenSolution);
             Console.WriteLine(DONE_MESSAGE);
             Console.ReadLine();
+            driver.Quit();
+            Environment.Exit(0);
         }
 
         #region Color Stuff
@@ -210,7 +215,14 @@ namespace FastFloodCheater
             });
             foreach (Color step in solution)
             {
-                buttons.Where(b => b.Item1 == step).First().Item2.Click();
+                try
+                {
+                    buttons.Where(b => b.Item1 == step).FirstOrDefault()?.Item2?.Click();
+                }
+                catch(Exception ex)
+                {
+                    Console.WriteLine(GAME_LOST_ERROR, ex);
+                }
             }
         }
 
