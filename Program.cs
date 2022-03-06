@@ -14,46 +14,60 @@ namespace FastFloodCheater
 {
     public class Program
     {
-        public static readonly int GRID_WIDTH = 10;
-        public static readonly string SITE_URL = "https://fastflood.dylancastillo.co/";
-        public static readonly string PLAY_NOW_BUTTON_ID = "start-btn";
-        public static readonly string COLOR_BUTTON_CLASS = "color-button";
-        public static readonly string CELL_CLASS = "cell";
+        const string SITE_URL = "https://fastflood.dylancastillo.co/";
+        const string DOCUMENT_READYSTATE_SCRIPT = "return document.readyState";
+        const string INVALID_UNICODE_ERROR = "Invalid unicode value";
+        const string DONE_MESSAGE = "Press any key to exit";
+        const string COLOR_BUTTON_CLASS = "color-button";
+        const string PLAY_NOW_BUTTON_ID = "start-btn";
+        const string COMPLETE = "complete";
+        const string CELL_CLASS = "cell";
+        const string DONE = "Done";
+
+        const string UNICODE_RED = "\U0001f7e5";
+        const string UNICODE_BLUE = "\U0001f7e6";
+        const string UNICODE_ORANGE = "\U0001f7e7";
+        const string UNICODE_YELLOW = "\U0001f7e8";
+        const string UNICODE_GREEN = "\U0001f7e9";
+        const string UNICODE_PURPLE = "\U0001f7ea";
+
+
+        const int CONSOLE_FORMATTING_COLUMN_WIDTH = 7;
+        const int JS_WAIT_TIMEOUT_MS = 10_000;
+        const int NUM_SOLUTIONS = 10_000;
+        const int GRID_WIDTH = 10;
 
         public static void Main(string[] args)
         {
             IWebDriver driver = new ChromeDriver(Directory.GetCurrentDirectory());
             driver.Url = SITE_URL;
-            var timeout = 10000;
-            var wait = new WebDriverWait(driver, TimeSpan.FromMilliseconds(timeout));
-            wait.Until(d => ((IJavaScriptExecutor)d).ExecuteScript("return document.readyState").Equals("complete"));
+            var wait = new WebDriverWait(driver, TimeSpan.FromMilliseconds(JS_WAIT_TIMEOUT_MS));
+            wait.Until(d => ((IJavaScriptExecutor)d).ExecuteScript(DOCUMENT_READYSTATE_SCRIPT).Equals(COMPLETE));
             driver.FindElement(By.Id(PLAY_NOW_BUTTON_ID)).Click();
             var cells = driver.FindElements(By.ClassName(CELL_CLASS));
             var grid = MakeGrid(cells);
 
-            var numSolutions = 10_000;
             int minSteps = int.MaxValue;
             object sync = new object();
             var solutions = new ConcurrentBag<List<Color>>();
-            Parallel.ForEach(Enumerable.Range(0, numSolutions), _ =>
+            Parallel.ForEach(Enumerable.Range(0, NUM_SOLUTIONS), _ =>
             {
                 solutions.Add(GetSolution(grid, ref minSteps, sync));
             });
 
-            var allSolutions = solutions.Where(s => s.Count <= minSteps + 1).ToList();
+            var allSolutions = solutions.Where(s => s.Count <= minSteps).ToList();
             var bestSolution = allSolutions.First();
-            //var optimizedSolution = GetOptimalSolution(allSolutions);//not good
-            for (int i = 0; i < minSteps + 1; i++)
+            for (int i = 0; i < minSteps; i++)
             {
                 string step = "";
                 foreach (var solution in allSolutions)
                 {
-                    step = $"{step} {(solution.Count > i ? solution[i].ToString() : "Done"),7}";
+                    step = $"{step} {(solution.Count > i ? solution[i].ToString() : DONE),CONSOLE_FORMATTING_COLUMN_WIDTH}";
                 }
                 Console.WriteLine($"{step}");
             }
             InputSolution(driver, bestSolution);
-            Console.WriteLine($"Press any key to exit.");
+            Console.WriteLine(DONE_MESSAGE);
             Console.ReadLine();
         }
 
@@ -73,13 +87,13 @@ namespace FastFloodCheater
         public static Color GetColor(string unicode) =>
             unicode switch
             {
-                "\U0001f7e5" => Color.Red,
-                "\U0001f7e6" => Color.Blue,
-                "\U0001f7e7" => Color.Orange,
-                "\U0001f7e8" => Color.Yellow,
-                "\U0001f7e9" => Color.Green,
-                "\U0001f7ea" => Color.Purple,
-                _ => throw new ArgumentException("Invalid unicode value", unicode)
+                UNICODE_RED => Color.Red,
+                UNICODE_BLUE => Color.Blue,
+                UNICODE_ORANGE => Color.Orange,
+                UNICODE_YELLOW => Color.Yellow,
+                UNICODE_GREEN => Color.Green,
+                UNICODE_PURPLE => Color.Purple,
+                _ => throw new ArgumentException(INVALID_UNICODE_ERROR, unicode)
             };
 
         public static Color GetRandomColor(Color previousColor)
