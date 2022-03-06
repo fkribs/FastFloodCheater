@@ -1,28 +1,29 @@
-﻿using OpenQA.Selenium;
-using OpenQA.Selenium.Chrome;
-using OpenQA.Selenium.Support.UI;
-using System;
+﻿using System.Collections.ObjectModel;
 using System.Collections.Concurrent;
+using OpenQA.Selenium.Support.UI;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Drawing;
-using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
+using OpenQA.Selenium.Chrome;
+using OpenQA.Selenium;
+using System.Drawing;
+using System.Linq;
+using System.IO;
+using System;
 
 namespace FastFloodCheater
 {
     class Program
     {
-        public static readonly string PLAY_NOW_BUTTON_ID = "start-btn";
-        public static readonly string CELL_CLASS = "cell";
-        public static readonly string COLOR_BUTTON_CLASS = "color-button";
         public static readonly int GRID_WIDTH = 10;
+        public static readonly string SITE_URL  = "https://fastflood.dylancastillo.co/";
+        public static readonly string PLAY_NOW_BUTTON_ID = "start-btn";
+        public static readonly string COLOR_BUTTON_CLASS = "color-button";
+        public static readonly string CELL_CLASS = "cell";
         static void Main(string[] args)
         {
             IWebDriver driver = new ChromeDriver(Directory.GetCurrentDirectory());
-            driver.Url = "https://fastflood.dylancastillo.co/";
-            var timeout = 10000; /* Maximum wait time of 10 seconds */
+            driver.Url = SITE_URL;
+            var timeout = 10000;
             var wait = new WebDriverWait(driver, TimeSpan.FromMilliseconds(timeout));
             wait.Until(d => ((IJavaScriptExecutor)d).ExecuteScript("return document.readyState").Equals("complete"));
             var button = driver.FindElement(By.Id(PLAY_NOW_BUTTON_ID));
@@ -41,7 +42,7 @@ namespace FastFloodCheater
 
             var allSolutions = solutions.Where(s => s.Count <= minSteps + 1).ToList();
             var bestSolution = allSolutions.First();
-            //var optimizedSolution = GetOptimalSolution(allSolutions);//not a good algorithm
+            //var optimizedSolution = GetOptimalSolution(allSolutions);//not good
             for (int i = 0; i < minSteps + 1; i++)
             {
                 string step = "";
