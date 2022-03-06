@@ -16,7 +16,7 @@ Another example
 
 # How to run
 
-Get appropriate ChromeDriver and place in directory, named "chromedriver.exe"
+[Get appropriate ChromeDriver](https://chromedriver.chromium.org/downloads/version-selection) and place in directory, named "chromedriver.exe"
 
 
 ## https://fastflood.dylancastillo.co
