@@ -1,5 +1,6 @@
 ﻿# About
 This is a Selenium bot that solves FastFlood puzzles
+![fastflood18](https://user-images.githubusercontent.com/22464103/156909693-714a8e6a-9429-4848-a9bb-b90b11c5f46a.gif)
 
 # How to run
 
