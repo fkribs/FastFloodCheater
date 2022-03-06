@@ -12,29 +12,29 @@ using System;
 
 namespace FastFloodCheater
 {
-    class Program
+    public class Program
     {
         public static readonly int GRID_WIDTH = 10;
-        public static readonly string SITE_URL  = "https://fastflood.dylancastillo.co/";
+        public static readonly string SITE_URL = "https://fastflood.dylancastillo.co/";
         public static readonly string PLAY_NOW_BUTTON_ID = "start-btn";
         public static readonly string COLOR_BUTTON_CLASS = "color-button";
         public static readonly string CELL_CLASS = "cell";
-        static void Main(string[] args)
+
+        public static void Main(string[] args)
         {
             IWebDriver driver = new ChromeDriver(Directory.GetCurrentDirectory());
             driver.Url = SITE_URL;
             var timeout = 10000;
             var wait = new WebDriverWait(driver, TimeSpan.FromMilliseconds(timeout));
             wait.Until(d => ((IJavaScriptExecutor)d).ExecuteScript("return document.readyState").Equals("complete"));
-            var button = driver.FindElement(By.Id(PLAY_NOW_BUTTON_ID));
-            button.Click();
+            driver.FindElement(By.Id(PLAY_NOW_BUTTON_ID)).Click();
             var cells = driver.FindElements(By.ClassName(CELL_CLASS));
             var grid = MakeGrid(cells);
+
             var numSolutions = 500_000;
-            var solutions = new ConcurrentBag<List<Color>>();
-            //int minSteps = int.MaxValue;
-            int minSteps = 18;
+            int minSteps = int.MaxValue;
             object sync = new object();
+            var solutions = new ConcurrentBag<List<Color>>();
             Parallel.ForEach(Enumerable.Range(0, numSolutions), _ =>
             {
                 solutions.Add(GetSolution(grid, ref minSteps, sync));
@@ -52,87 +52,45 @@ namespace FastFloodCheater
                 }
                 Console.WriteLine($"{step}");
             }
-            Console.ReadLine();
             InputSolution(driver, bestSolution);
+            Console.WriteLine($"Press any key to exit.");
+            Console.ReadLine();
         }
 
-        public static List<Color> GetOptimalSolution(List<List<Color>> solutions)
+        #region Color Stuff
+        public enum Color
         {
-            var optimalSolution = new List<Color>();
-            for (int i = 0; i < solutions[0].Count; i++)
-            {
-                Dictionary<Color, int> options = new Dictionary<Color, int>();
-                solutions.ForEach(s =>
-                {
-                    var color = s[i];
-                    if (options.ContainsKey(color))
-                    {
-                        options[color] += 1;
-                    }
-                    else
-                    {
-                        options[color] = 1;
-                    }
-                });
-                var bestOption = options.Where(o => o.Value == options.Max(kvp => kvp.Value)).First();
-                optimalSolution.Add(bestOption.Key);
-            }
-            return optimalSolution;
+            Red,
+            Blue,
+            Orange,
+            Yellow,
+            Green,
+            Purple
         }
 
-        public static void InputSolution(IWebDriver driver, List<Color> solution)
-        {
-            var buttonElements = driver.FindElements(By.ClassName(COLOR_BUTTON_CLASS));
-            var buttons = new List<Tuple<Color, IWebElement>>();
-            buttonElements.ToList().ForEach(we =>
+        public static Tuple<Color, IWebElement> GetColorTuple(string unicode, IWebElement element) => new Tuple<Color, IWebElement>(GetColor(unicode), element);
+
+        public static Color GetColor(string unicode) =>
+            unicode switch
             {
-                buttons.Add(GetColorTuple(we.Text, we));
-            });
-            foreach (Color step in solution)
-            {
-                buttons.Where(b => b.Item1 == step).First().Item2.Click();
-            }
-        }
+                "\U0001f7e5" => Color.Red,
+                "\U0001f7e6" => Color.Blue,
+                "\U0001f7e7" => Color.Orange,
+                "\U0001f7e8" => Color.Yellow,
+                "\U0001f7e9" => Color.Green,
+                "\U0001f7ea" => Color.Purple,
+                _ => throw new ArgumentException("Invalid unicode value", unicode)
+            };
+
         public static Color GetRandomColor(Color previousColor)
         {
             var rand = new Random();
             List<Color> colors = Enum.GetValues(typeof(Color)).OfType<Color>().Where(color => color != previousColor).ToList();
             return colors[rand.Next(colors.Count)];
         }
+        #endregion Color Stuff
 
-        public static List<Color> GetSolution(List<List<Tuple<Color, IWebElement>>> grid, ref int minSteps, object sync)
-        {
-            var gridCopy = CopyGrid(grid);
-            var solution = new List<Color>();
-            var previousColor = gridCopy.First().First().Item1;
-            int steps = 0;
-            bool completed = false;
-            while (steps++ <= minSteps)
-            {
-                completed = IsComplete(gridCopy);
-                if (completed)
-                    break;
-                var currentColor = GetRandomColor(previousColor);
-                solution.Add(currentColor);
-                FillGrid(ref gridCopy, currentColor);
-                previousColor = currentColor;
-            }
-            if (completed)
-                lock (sync) minSteps = solution.Count;
-            else
-                solution.Add(solution.Last());
-            return solution;
-        }
-
-        public static bool IsComplete(List<List<Tuple<Color, IWebElement>>> grid)
-        {
-            return grid.All(row =>
-            {
-                var color = row.First().Item1;
-                return row.All(cell => cell.Item1 == color);
-            });
-        }
-
+        #region Grid Stuff
         public static List<List<Tuple<Color, IWebElement>>> CopyGrid(List<List<Tuple<Color, IWebElement>>> grid)
         {
             var newGrid = new List<List<Tuple<Color, IWebElement>>>();
@@ -194,27 +152,76 @@ namespace FastFloodCheater
             }
         }
 
-        public static Tuple<Color, IWebElement> GetColorTuple(string unicode, IWebElement element) => new Tuple<Color, IWebElement>(GetColor(unicode), element);
-        public static Color GetColor(string unicode) =>
-            unicode switch
+        public static bool IsComplete(List<List<Tuple<Color, IWebElement>>> grid)
+        {
+            return grid.All(row =>
             {
-                "\U0001f7e5" => Color.Red,
-                "\U0001f7e6" => Color.Blue,
-                "\U0001f7e7" => Color.Orange,
-                "\U0001f7e8" => Color.Yellow,
-                "\U0001f7e9" => Color.Green,
-                "\U0001f7ea" => Color.Purple,
-                _ => throw new ArgumentException("Invalid unicode value", unicode)
-            };
+                var color = row.First().Item1;
+                return row.All(cell => cell.Item1 == color);
+            });
+        }
+        #endregion Grid Stuff
 
-    }
-    enum Color
-    {
-        Red,
-        Blue,
-        Orange,
-        Yellow,
-        Green,
-        Purple
+        public static List<Color> GetSolution(List<List<Tuple<Color, IWebElement>>> grid, ref int minSteps, object sync)
+        {
+            var gridCopy = CopyGrid(grid);
+            var solution = new List<Color>();
+            var previousColor = gridCopy.First().First().Item1;
+            int steps = 0;
+            bool completed = false;
+            while (steps++ <= minSteps)
+            {
+                completed = IsComplete(gridCopy);
+                if (completed)
+                    break;
+                var currentColor = GetRandomColor(previousColor);
+                solution.Add(currentColor);
+                FillGrid(ref gridCopy, currentColor);
+                previousColor = currentColor;
+            }
+            if (completed)
+                lock (sync) minSteps = solution.Count;
+            else
+                solution.Add(solution.Last());
+            return solution;
+        }
+
+        public static void InputSolution(IWebDriver driver, List<Color> solution)
+        {
+            var buttonElements = driver.FindElements(By.ClassName(COLOR_BUTTON_CLASS));
+            var buttons = new List<Tuple<Color, IWebElement>>();
+            buttonElements.ToList().ForEach(we =>
+            {
+                buttons.Add(GetColorTuple(we.Text, we));
+            });
+            foreach (Color step in solution)
+            {
+                buttons.Where(b => b.Item1 == step).First().Item2.Click();
+            }
+        }
+
+        public static List<Color> GetOptimalSolution(List<List<Color>> solutions)
+        {
+            var optimalSolution = new List<Color>();
+            for (int i = 0; i < solutions[0].Count; i++)
+            {
+                Dictionary<Color, int> options = new Dictionary<Color, int>();
+                solutions.ForEach(s =>
+                {
+                    var color = s[i];
+                    if (options.ContainsKey(color))
+                    {
+                        options[color] += 1;
+                    }
+                    else
+                    {
+                        options[color] = 1;
+                    }
+                });
+                var bestOption = options.Where(o => o.Value == options.Max(kvp => kvp.Value)).First();
+                optimalSolution.Add(bestOption.Key);
+            }
+            return optimalSolution;
+        }
     }
 }
